@@ -1,8 +1,12 @@
 const { CloudFrontClient, CreateInvalidationCommand } = require("@aws-sdk/client-cloudfront");
+const { CodePipelineClient, PutJobSuccessResultCommand, PutJobFailureResultCommand } = require ("@aws-sdk/client-codepipeline");
 
-exports.handler = async () => {
+exports.handler = async (event) => {
+    const codePipelineClient = new CodePipelineClient();
+    const client = new CloudFrontClient();
+    const codePipelineJobId = event['CodePipeline.job']['id'];
+    
     try {
-        const client = new CloudFrontClient();
         const command = new CreateInvalidationCommand({
             DistributionId: 'E29MUCSSNM6902',
             InvalidationBatch: {
@@ -13,9 +17,32 @@ exports.handler = async () => {
                 }
             }
         });
+
         const response = await client.send(command);
-        console.log(response);
+        const codePipelineCommand = new PutJobSuccessResultCommand({
+            jobId: codePipelineJobId
+        });
+    
+        const codePipelineResponse = await codePipelineClient.send(codePipelineCommand);
+        console.log({
+            Id: response.Invalidation.Id,
+            CreateTime: response.Invalidation.CreateTime,
+            Status: response.Invalidation.Status,
+            Location: response.Location
+        });
+
+        return codePipelineResponse;
+
     } catch (err) {
-        console.log(err);
+        const jobFailed = new PutJobFailureResultCommand({
+            failureDetails: {
+                message: 'Invalidation failed',
+                type: 'JobFailed'
+            },
+            jobId: codePipelineJobId
+        });
+
+        const failedResponse = await codePipelineClient.send(jobFailed);
+        return failedResponse;
     }
 };
