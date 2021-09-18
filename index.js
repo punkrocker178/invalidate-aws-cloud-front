@@ -3,7 +3,16 @@ const { CloudFrontClient, CreateInvalidationCommand } = require("@aws-sdk/client
 exports.handler = async () => {
     try {
         const client = new CloudFrontClient();
-        const command = new CreateInvalidationCommand('E29MUCSSNM6902');
+        const command = new CreateInvalidationCommand({
+            DistributionId: 'E29MUCSSNM6902',
+            InvalidationBatch: {
+                CallerReference: Date.now(),
+                Paths: {
+                    Items: ['/*'],
+                    Quantity: 1
+                }
+            }
+        });
         const response = await client.send(command);
         console.log(response);
     } catch (err) {
